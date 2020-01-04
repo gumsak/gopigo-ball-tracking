@@ -1,16 +1,15 @@
 # import the necessary packages
 from collections import deque
 from imutils.video import VideoStream
-import numpy as np
 import argparse
 import cv2
 import imutils
 import time
 
-#import gopigo3
+import gopigo3
 
 # Create an instance of the GoPiGo3 class. GPG will be the GoPiGo3 object.
-#gpg = gopigo3.GoPiGo3()
+gpg = gopigo3.GoPiGo3()
 
 #possibility to use the easygopigo3 lib
 # importing the EasyGoPiGo3 class
@@ -158,28 +157,14 @@ while True:
             __turn_robot__(center[0], 600)
             __move_robot__(radius, center, 600)
 
-#    # update the points queue
-#    pts.appendleft(center)
-#
-#    # loop over the set of tracked points
-#    for i in range(1, len(pts)):
-#        # if either of the tracked points are None, ignore
-#        # them
-#        if pts[i - 1] is None or pts[i] is None:
-#            continue
-#
-#        # otherwise, compute the thickness of the line and
-#        # draw the connecting lines
-#        thickness = int(np.sqrt(args["buffer"] / float(i + 1)) * 2.5)
-#        cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)
-
     # show the frame to our screen
     cv2.imshow("Frame", frame)
     key = cv2.waitKey(1) & 0xFF
 
     # if the 'q' key is pressed, stop the loop
     if key == ord("q"):
-        break
+        exit()
+
 
 # if we are not using a video file, stop the camera video stream
 if not args.get("video", False):
