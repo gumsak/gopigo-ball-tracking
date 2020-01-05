@@ -10,10 +10,13 @@ from multiprocessing.pool import ThreadPool
 from multiprocessing import Process
 import multiprocessing as multip
 
-import gopigo3
+#import gopigo
 
 # Create an instance of the GoPiGo3 class. GPG will be the GoPiGo3 object.
-gpg = gopigo3.GoPiGo3()
+#gpg = gopigo3.GoPiGo3()
+
+robot_is_moving = False
+robot_is_turning = False
 
 #possibility to use the easygopigo3 lib
 # importing the EasyGoPiGo3 class
@@ -86,58 +89,81 @@ def __turn_robot__(objectCenter, w):
         print("Stopping")
 
 #move the robot forward/backward
-def __move_robot__(radius, center, w):
+def __move_robot__(radius, center, w, pipe_in):
+    
+    print("Moving robot... Radius", radius)
+    
+    global robot_is_moving, robot_is_turning
+    """
+     if robot_is_moving || robot_is_turning:
+         if(radius >= 100) and check_object_centered(center, w):
+    """                    
+    # start moving toward the object if it is far & the robot isn't moving
     if(radius < 100) and check_object_centered(center, w):
-       __move_forward__()
+        if not robot_is_moving and not robot_is_turning:
+            pipe_in.send("forward")
+            #__move_forward__()
+            robot_is_moving = True
+        
+    # stop moving if close enough of the object & the robot is moving
     else:
-       #gpg.stop()
-       print("Stopping")
+        if robot_is_moving and robot_is_turning:
+            #gpg.stop()
+            pipe_in.send("stop")
+            robot_is_moving = False
 
-#set the robot's movements
+# set the robot's movements
 #radius, center, w
 def control_robot(radius, center, w):
     __turn_robot__(center[0], 600)
-    __move_robot__(radius, center, 600)
+    #__move_robot__(radius, center, 600)
 
-def set_movement(command):
+def set_movement(pipe_out):
+    
+    command = pipe_out.recv()
     
     if command == "forward":
+        print("forward...")
         #gpg.right()
-        pass
     elif command == "reverse":
+        print("reverse...")
         #gpg.right()
-        pass
     elif command == "left":
+        print("turn left...")
         #gpg.right()
-        pass
     elif command == "right":
+        print("turn right...")
         #gpg.right()
-        pass
     elif command == "stop":
+        print("Stopping...")
         #gpg.stop()
-        pass
     else:
+        print("Stopping...")
         #gpg.stop()
-        pass
 
-#set up the parallel processing
-def init_multiprocessing():
+#set up the parallel processing: param1 = pipe, param2 = function to parallelize
+def init_multiprocessing(pipe_out, func):
     
     robot_process = Process(name = 'robot_controller',
                             group = None,
-                            target = control_robot(),
-                            args = (radius, center, None))
+                            target = func,
+                            args = (pipe_out,))
+    
+    print("Creating process:", robot_process.name)
     
     return robot_process
 
-# define the lower and upper boundaries of the "green"
-# ball in the HSV color space, then initialize the
-# list of tracked points
+# define the lower and upper boundaries of the possible colors of the 
+# ball in the HSV color space, then initialize the list of tracked points
+# hsv color picking example: https://stackoverflow.com/a/48367205
 greenLower = (29, 86, 6)
 greenUpper = (64, 255, 255)
 
 blueLower = (110, 140, 50)
 blueUpper = (125, 255, 255)
+
+orangeLower = (10, 100, 20)
+orangeUpper = (25, 255, 255)
 
 pts = deque(maxlen=args["buffer"])
 
@@ -146,9 +172,16 @@ time.sleep(2.0)
 
 if __name__ == '__main__':
 
-    #start processing
-    robot_process = init_multiprocessing()
+    #global robot_is_moving, robot_is_turning
+    
+    # create the pipes used for the communication between 2 process
+    parent_p, child_p = multip.Pipe()
+    
+    # start processing
+    robot_process = init_multiprocessing(child_p, set_movement)
     robot_process.start()
+
+    w = 600
 
     # keep looping
     while True:
@@ -204,8 +237,14 @@ if __name__ == '__main__':
                     (0, 255, 255), 2)
                 cv2.circle(frame, center, 5, (0, 0, 255), -1)
                 
-                #__turn_robot__(center[0], 600)
-                #__move_robot__(radius, center, 600)
+                # check if the robot is already in motion
+                #if robot_is_moving || robot_is_turning:
+                #    if(radius >= 100) and check_object_centered(center, w):
+                        
+                #else:
+                    #parent_p.send()
+                    #__turn_robot__(center[0], 600)
+                __move_robot__(radius, center[0], w, parent_p)
     
         # display the frame on the screen
         cv2.imshow("Frame", frame)
@@ -213,6 +252,12 @@ if __name__ == '__main__':
     
         # if the 'q' key is pressed, stop the loop
         if key == ord("q"):
+            robot_process.join()
+            robot_process.close()
+            if robot_process.is_alive:
+                print('{} process still alive...'.format(robot_process.name))
+            else:
+                print('{} process stoped...'.format(robot_process.name))                
             break
 
 # if we are not using a video file, stop the camera video stream
