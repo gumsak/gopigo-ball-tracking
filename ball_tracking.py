@@ -91,25 +91,26 @@ def __turn_robot__(objectCenter, w):
 #move the robot forward/backward
 def __move_robot__(radius, center, w, pipe_in):
     
-    print("Moving robot... Radius", radius)
+    #print("Moving robot... Radius", radius)
     
     global robot_is_moving, robot_is_turning
-    """
-     if robot_is_moving || robot_is_turning:
-         if(radius >= 100) and check_object_centered(center, w):
-    """                    
+                  
     # start moving toward the object if it is far & the robot isn't moving
     if(radius < 100) and check_object_centered(center, w):
-        if not robot_is_moving and not robot_is_turning:
-            pipe_in.send("forward")
-            #__move_forward__()
+        #print("Should move...")
+        if not robot_is_moving:# and not robot_is_turning:
+            #pipe_in.send("forward")
             robot_is_moving = True
+            __move_forward__()
         
     # stop moving if close enough of the object & the robot is moving
-    else:
-        if robot_is_moving and robot_is_turning:
+    elif (radius >= 100) or not check_object_centered(center, w):
+        #print("Is getting close...")
+
+        if robot_is_moving or robot_is_turning:
+            print("Should stop...")
             #gpg.stop()
-            pipe_in.send("stop")
+            #pipe_in.send("stop")
             robot_is_moving = False
 
 # set the robot's movements
@@ -119,33 +120,44 @@ def control_robot(radius, center, w):
     #__move_robot__(radius, center, 600)
 
 def set_movement(pipe_out):
-    
+        
+    #global robot_is_moving
+
     command = pipe_out.recv()
     
+    print('Pipe out process...')#, command
+
     if command == "forward":
         print("forward...")
+        #robot_is_moving = True
         #gpg.right()
     elif command == "reverse":
         print("reverse...")
+        #robot_is_moving = True
         #gpg.right()
     elif command == "left":
         print("turn left...")
+        #robot_is_moving = True
         #gpg.right()
     elif command == "right":
         print("turn right...")
+        #robot_is_moving = True
         #gpg.right()
     elif command == "stop":
         print("Stopping...")
+        #robot_is_moving = False
         #gpg.stop()
     else:
         print("Stopping...")
+        #robot_is_moving = False
         #gpg.stop()
-
+        
+    pipe_out.close
+    
 #set up the parallel processing: param1 = pipe, param2 = function to parallelize
 def init_multiprocessing(pipe_out, func):
     
     robot_process = Process(name = 'robot_controller',
-                            group = None,
                             target = func,
                             args = (pipe_out,))
     
@@ -178,8 +190,12 @@ if __name__ == '__main__':
     parent_p, child_p = multip.Pipe()
     
     # start processing
-    robot_process = init_multiprocessing(child_p, set_movement)
-    robot_process.start()
+    #robot_process = init_multiprocessing(child_p, set_movement)
+    robot_process = Process(name = 'robot_controller',
+                            target = set_movement,
+                            args = (child_p,))
+    
+    #robot_process.start()
 
     w = 600
 
@@ -227,7 +243,7 @@ if __name__ == '__main__':
             
             #get the ceter of the video
             center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-            print("center = " + str(center))
+            #print("center = " + str(center))
             
             # only proceed if the radius meets a minimum size
             if radius > 10:
@@ -244,7 +260,10 @@ if __name__ == '__main__':
                 #else:
                     #parent_p.send()
                     #__turn_robot__(center[0], 600)
-                __move_robot__(radius, center[0], w, parent_p)
+                try:
+                    __move_robot__(radius, center[0], w, parent_p)
+                except:
+                    pass
     
         # display the frame on the screen
         cv2.imshow("Frame", frame)
@@ -252,13 +271,18 @@ if __name__ == '__main__':
     
         # if the 'q' key is pressed, stop the loop
         if key == ord("q"):
-            robot_process.join()
-            robot_process.close()
-            if robot_process.is_alive:
-                print('{} process still alive...'.format(robot_process.name))
-            else:
-                print('{} process stoped...'.format(robot_process.name))                
             break
+
+# close process & pipes
+robot_process.join()
+robot_process.close()
+parent_p.close()
+child_p.close()
+          
+if robot_process.is_alive:
+    print('{} process still alive...'.format(robot_process.name))
+else:
+    print('{} process stoped...'.format(robot_process.name))
 
 # if we are not using a video file, stop the camera video stream
 if not args.get("video", False):
@@ -269,4 +293,4 @@ else:
     vs.release()
 
 # close all windows
-cv2.destroyAllWindows()
+cv2.destroyAllWindows()     
