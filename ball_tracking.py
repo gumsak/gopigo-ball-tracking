@@ -36,16 +36,16 @@ args = vars(ap.parse_args())
 # if a video path was not supplied, grab the reference
 # to the webcam
 if not args.get("video", False):
-    vs = VideoStream(src=0).start()
+    video_stream = VideoStream(src=0).start()
 
 # otherwise, grab a reference to the video file
 else:
-    vs = cv2.VideoCapture(args["video"])
+    video_stream = cv2.VideoCapture(args["video"])
 
 #time.sleep(2)
 #width and height of the screen
-#width = vs.get(cv2.CAP_PROP_FRAME_WIDTH)
-#height = vs.get(cv2.CAP_PROP_FRAME_HEIGHT)
+#width = video_stream.get(cv2.CAP_PROP_FRAME_WIDTH)
+#height = video_stream.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
 #move the robot forward
 def __move_forward__():
@@ -216,6 +216,14 @@ orangeUpper = (25, 255, 255)
 redLower = (160, 120, 20)
 redUpper = (180, 255, 255)
 
+lowHue = 160
+highHue = 180
+lowSat = 120
+highSat = 255
+lowVal = 20
+highVal = 255
+
+
 pts = deque(maxlen=args["buffer"])
 
 # allow the camera or video file to warm up
@@ -243,7 +251,7 @@ if __name__ == '__main__':
     # keep looping
     while True:
         # grab the current frame
-        frame = vs.read()
+        frame = video_stream.read()
      
         # handle the frame from VideoCapture or VideoStream
         frame = frame[1] if args.get("video", False) else frame
@@ -340,11 +348,11 @@ stop()
 
 # if we are not using a video file, stop the camera video stream
 if not args.get("video", False):
-    vs.stop()
+    video_stream.stop()
 
 # otherwise, release the camera
 else:
-    vs.release()
+    video_stream.release()
     #video_record.release()
     
 # close all windows
